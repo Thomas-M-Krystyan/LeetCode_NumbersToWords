@@ -1,22 +1,24 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 public class Solution
 {
+    private const int Three = 3;  // NOTE: "The Rule of Three"
+
     public string NumberToWords(int num)
     {
         // Prepare the array of numbers
         int[] numbers = num.ToString().Select(number => Int32.Parse(number.ToString()))
                                       .ToArray();
-        int count = numbers.Length;
+        int length = numbers.Length;
 
         // ------------------
         // Cases between 0-99
         // ------------------
-        if (count < 3)
+        if (length < 3)
         {
-            return NumbersBuilder.GetNumber(numbers);
+            return NumbersBuilder.GetNumber(numbers, length);
         }
 
         // --------------------
@@ -24,18 +26,19 @@ public class Solution
         // --------------------
         var resultBuilder = new ResultBuilder();
         int quantityLevel = 0;
+        int tripletsCounter = 0;
 
         do
         {
-            if (numbers.Length >= 3)
+            if (length >= Three)  // NOTE: First iteration always true
             {
                 // Get the current last three digits
-                int prePreLastNumber = numbers[^3];
-                int preLastNumber = numbers[^2];
-                int lastNumber = numbers[^1];
+                int prePreLastNumber = numbers[^(3 + tripletsCounter)];
+                int preLastNumber = numbers[^(2 + tripletsCounter)];
+                int lastNumber = numbers[^(1 + tripletsCounter)];
 
-                // Skip the already cached last three digits
-                numbers = numbers.SkipLast(3).ToArray();
+                // Update do-while loop condition
+                length -= Three;
 
                 // Convert the number to a word
                 if (quantityLevel > 0 && NumbersBuilder.NonZeroSeries(prePreLastNumber, preLastNumber, lastNumber))
@@ -50,6 +53,9 @@ public class Solution
                     resultBuilder.AddNumber(NumbersBuilder.GetSingleDigitNumber(prePreLastNumber));
                 }
 
+                // Update the number of parsed triplets
+                tripletsCounter += Three;
+
                 // Update the large quantity word
                 quantityLevel += 1;
             }
@@ -57,20 +63,34 @@ public class Solution
             {
                 // Convert the number to a word
                 resultBuilder.AddQuantity(quantityLevel);
-                resultBuilder.AddNumber(NumbersBuilder.GetNumber(numbers));
+                resultBuilder.AddNumber(NumbersBuilder.GetNumber(numbers, length));
 
-                // Prepare the while loop to break
-                numbers = Array.Empty<int>();
+                // Prepare the loop to break
+                length = 0;
             }
 
-        } while (numbers.Length != 0);
+        } while (length > 0);
 
-        return resultBuilder.Result.ToString().Trim();
+        return resultBuilder.FinalResult;
     }
 
     private sealed class ResultBuilder
     {
-        public StringBuilder Result { get; } = new StringBuilder();
+        private readonly LinkedList<string> _words = new LinkedList<string>();
+
+        private string _tempResult;
+        public string FinalResult
+        {
+            get
+            {
+                foreach (string word in _words)
+                {
+                    _tempResult += word;
+                }
+
+                return _tempResult.Trim();
+            }
+        }
 
         public void AddQuantity(int quantityLevel)
         {
@@ -89,7 +109,8 @@ public class Solution
 
         private void Prepend(object value)
         {
-            this.Result.Insert(0, $" {value}");
+            this._words.AddFirst(" ");
+            this._words.AddFirst(value.ToString());
         }
     }
 
@@ -108,12 +129,10 @@ public class Solution
         private static readonly string[] DozenNumbers = new string[8] { "Twenty", "Thirty", "Forty", "Fifty",
                                                                         "Sixty", "Seventy", "Eighty", "Ninety" };  // [index - 2]
 
-        private static readonly string[] LargeQuantities = new string[] { "Hundred", "Thousand", "Million", "Billion",
-                                                                          "Trillion" };
+        private static readonly string[] LargeQuantities = new string[] { "Hundred", "Thousand", "Million", "Billion" };
 
-        public static string GetNumber(int[] numbers)
+        public static string GetNumber(int[] numbers, int length)
         {
-            int length = numbers.Length;
             string number = Unknown;
 
             // -----------------
@@ -177,17 +196,9 @@ public class Solution
                                                           : Unknown;
         }
 
-        public static bool NonZeroSeries(params int[] numbers)
+        public static bool NonZeroSeries(int number1, int number2, int number3)
         {
-            int result = 0;
-
-            for (int index = 0; index < numbers.Length; index++)
-            {
-                int number = numbers[index];
-                result += number;
-            }
-
-            return result != 0;
+            return number1 + number2 + number3 != 0;
         }
     }
 }
